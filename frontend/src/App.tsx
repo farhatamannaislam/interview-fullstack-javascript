@@ -19,8 +19,7 @@ function App() {
 
   // Form fields for adding city
   const [newName, setNewName] = useState('');
-  const [newCount, setNewCount] = useState('');
-
+  const [newCount, setNewCount] = useState<number>(0);
 
   const fetchCities = async () => {
     if (!search.trim()) return;
@@ -59,7 +58,8 @@ function App() {
       const res = await fetch('http://localhost:8000/api/cities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, count: parseInt(newCount, 10) }),
+        body: JSON.stringify({ name: newName, count: newCount }),
+
       });
 
       if (!res.ok) throw new Error('Failed to add city');
@@ -123,7 +123,7 @@ function App() {
             type="number"
             placeholder="Count"
             value={newCount}
-            onChange={(e) => setNewCount(e.target.value)}
+            onChange={(e) => setNewCount(Number(e.target.value))}
             className="search-input"
           />
           <button onClick={handleAddCity} className="search-button">
