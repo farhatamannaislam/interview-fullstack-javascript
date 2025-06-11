@@ -52,6 +52,80 @@ db.run(`CREATE TABLE IF NOT EXISTS cities (
   });
 });
 
+// ✅ GET /api/cities?search=ber&page=1
+app.get('/api/cities', (req, res) => {
+  const search = (req.query.search as string || '').toLowerCase();
+  const page = parseInt(req.query.page as string || '1');
+  const pageSize = 5;
+  const offset = (page - 1) * pageSize;
+
+  const query = `
+    SELECT * FROM cities
+    WHERE LOWER(name) LIKE ?
+    LIMIT ? OFFSET ?
+  `;
+  const params = [`%${search}%`, pageSize, offset];
+
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ results: rows, page });
+  });
+});
+
+// ✅ POST /api/cities
+app.post('/api/cities', (req, res) => {
+  const { name, count } = req.body;
+
+  if (!name || typeof count !== 'number') {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+
+  const query = `INSERT INTO cities (name, count) VALUES (?, ?)`;
+  db.run(query, [name, count], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({ id: this.lastID, name, count });
+  });
+});
+
+// ✅ GET /api/cities/:id
+app.get('/api/cities/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.get('SELECT * FROM cities WHERE id = ?', [id], (err, row) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!row) return res.status(404).json({ error: 'City not found' });
+    res.json(row);
+  });
+});
+
+// ✅ PUT /api/cities/:id
+app.put('/api/cities/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { name, count } = req.body;
+
+  if (!name || typeof count !== 'number') {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+
+  db.run(
+    'UPDATE cities SET name = ?, count = ? WHERE id = ?',
+    [name, count, id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'City not found' });
+      res.json({ id, name, count });
+    }
+  );
+});
+
+// ✅ DELETE /api/cities/:id
+app.delete('/api/cities/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.run('DELETE FROM cities WHERE id = ?', [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'City not found' });
+    res.status(204).send(); // No content
+  });
+});
 
 
 // Root route
