@@ -1,4 +1,7 @@
 body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   margin: 0;
   padding: 0;
   font-family: 'Segoe UI', Arial, sans-serif;
@@ -8,8 +11,7 @@ body {
 
 .container {
   max-width: 800px;
-  margin: 0 auto;
-  margin-left: 350px;
+  margin: 5rem auto;
   padding: 2rem;
   background-color: #fff;
   border-radius: 8px;
@@ -18,7 +20,7 @@ body {
 
 .title {
   text-align: center;
-  font-size: 2.5rem;
+  font-size: 1.5rem;
   margin-bottom: 2rem;
   color: #0a549d;
 }
@@ -70,6 +72,7 @@ body {
   align-items: center;
   justify-content: center;
   margin-bottom: 2rem;
+  font-size: 0.75rem;
 }
 
 .results-container {
@@ -89,12 +92,23 @@ body {
 }
 
 .city-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 150px 100px;
+  /* Name | Count | Button */
   align-items: center;
+  gap: 1rem;
   padding: 1rem;
   border-bottom: 1px solid #eee;
   transition: background-color 0.2s;
+  width: 100%;
+  max-width: 600px;
+}
+
+.city-count {
+  color: #7f8c8d;
+  text-align: center;
+  width: 100%;
+  margin-right: 200px;
 }
 
 .city-item:hover {
