@@ -22,11 +22,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
 // Create table if it doesn't exist
 db.run(`CREATE TABLE IF NOT EXISTS cities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL UNIQUE,
   count INTEGER NOT NULL
 );`, () => {
   // After table is ready, check if empty
-  const citiesJsonPath = path.resolve(__dirname, '..', 'database', 'cities.json');
+ const citiesJsonPath = path.resolve(__dirname, '../../database/cities.json');
   db.get('SELECT COUNT(*) AS count FROM cities', (err, row) => {
     if (err) {
       console.error('❌ Failed to count cities:', err.message);
@@ -76,14 +76,29 @@ app.get('/api/cities', (req, res) => {
 app.post('/api/cities', (req, res) => {
   const { name, count } = req.body;
 
-  if (!name || typeof count !== 'number') {
-    return res.status(400).json({ error: 'Invalid input' });
+  if (
+    !name || typeof name !== 'string' || /^\d+$/.test(name) ||
+    typeof count !== 'number' || count <= 0
+  ) {
+    return res.status(400).json({
+      error: 'Invalid input. Name must be a non-numeric string and count a positive number.'
+    });
   }
 
-  const query = `INSERT INTO cities (name, count) VALUES (?, ?)`;
-  db.run(query, [name, count], function (err) {
+  // 👇 Duplicate name check (case-insensitive)
+  const duplicateCheck = 'SELECT * FROM cities WHERE LOWER(name) = LOWER(?)';
+  db.get(duplicateCheck, [name], (err, existing) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.status(201).json({ id: this.lastID, name, count });
+    if (existing) {
+      return res.status(409).json({ error: 'City already exists.' });
+    }
+
+    // Proceed with insertion
+    const query = `INSERT INTO cities (name, count) VALUES (?, ?)`;
+    db.run(query, [name, count], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id: this.lastID, name, count });
+    });
   });
 });
 
@@ -102,20 +117,46 @@ app.put('/api/cities/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { name, count } = req.body;
 
-  if (!name || typeof count !== 'number') {
-    return res.status(400).json({ error: 'Invalid input' });
+  // Validate input
+  if (
+    !name ||
+    typeof name !== 'string' ||
+    /^\d+$/.test(name) || // prevent numeric-only names
+    typeof count !== 'number' ||
+    count <= 0
+  ) {
+    return res.status(400).json({
+      error: 'Invalid input. Name must be a non-numeric string and count a positive number.'
+    });
   }
 
-  db.run(
-    'UPDATE cities SET name = ?, count = ? WHERE id = ?',
-    [name, count, id],
-    function (err) {
+  // Step 1: Check if city with given ID exists
+  const checkQuery = 'SELECT * FROM cities WHERE id = ?';
+  db.get(checkQuery, [id], (err, city) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!city) return res.status(404).json({ error: 'City not found' });
+
+    // Step 2: Check for duplicate city name (excluding current ID)
+    const duplicateCheck = 'SELECT * FROM cities WHERE LOWER(name) = LOWER(?) AND id != ?';
+    db.get(duplicateCheck, [name, id], (err, duplicate) => {
       if (err) return res.status(500).json({ error: err.message });
-      if (this.changes === 0) return res.status(404).json({ error: 'City not found' });
-      res.json({ id, name, count });
-    }
-  );
+      if (duplicate) {
+        return res.status(409).json({ error: 'City name already exists.' });
+      }
+
+      // Step 3: Perform update
+      db.run(
+        'UPDATE cities SET name = ?, count = ? WHERE id = ?',
+        [name, count, id],
+        function (err) {
+          if (err) return res.status(500).json({ error: err.message });
+          res.json({ id, name, count });
+        }
+      );
+    });
+  });
 });
+
 
 // ✅ DELETE /api/cities/:id
 app.delete('/api/cities/:id', (req, res) => {
