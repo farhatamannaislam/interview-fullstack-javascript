@@ -5,32 +5,37 @@ type City = {
   id: number;
   name: string;
   count: number;
-  isEditing?: boolean; // new
-  editName?: string;   // new
-  editCount?: number;  // new
+  isEditing?: boolean;
+  editName?: string;
+  editCount?: number;
 };
-
 
 function App() {
   const [search, setSearch] = useState('');
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Form fields for adding city
   const [newName, setNewName] = useState('');
   const [newCount, setNewCount] = useState<number>(0);
 
   const fetchCities = async () => {
-    if (!search.trim()) return;
+    if (!search.trim()) {
+      setCities([]);
+      setError(null); // Clear any previous error when input is empty
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch(`http://localhost:8000/api/cities?search=${encodeURIComponent(search)}&page=1`);
       if (!res.ok) throw new Error('Network response was not ok');
       const data = await res.json();
       setCities(data.results);
-      if (search.trim() && data.results.length === 0) {
+
+      // Handle empty result
+      if (data.results.length === 0) {
         setError('No cities found. Try a different search term.');
       } else {
         setError(null);
@@ -42,6 +47,7 @@ function App() {
       setLoading(false);
     }
   };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,36 +65,45 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newName, count: newCount }),
-
       });
 
-      if (!res.ok) throw new Error('Failed to add city');
+      if (res.status === 409) {
+        setError('This city already exists. Please choose a different name.');
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error('Failed to add city');
+      }
 
       setNewName('');
       setNewCount(0);
+      setError(null); // clear previous errors
       fetchCities();
     } catch (err) {
       console.error('Add city failed:', err);
-      setError('Failed to add city.');
+      setError('Failed to add city. Please try again.');
     }
   };
+
 
   const handleDelete = async (id: number) => {
     try {
       await fetch(`http://localhost:8000/api/cities/${id}`, {
         method: 'DELETE',
       });
-      fetchCities();
+      setError(null); // clear previous error
+      fetchCities();  // refresh the list
     } catch (err) {
       console.error('Delete failed:', err);
       setError('Failed to delete city.');
     }
   };
 
+
   return (
     <div className="container">
       <h1 className="title">City Search</h1>
-
       <form onSubmit={handleSubmit} className="search-form">
         <div className="search-group">
           <input
@@ -141,7 +156,7 @@ function App() {
             {cities.map((city) => (
               <li key={city.id} className="city-item">
                 <span className="city-name">{city.name}</span>
-                <span className="city-count">Population: {city.count.toLocaleString()}</span>
+                <span className="city-count">Count: {city.count.toLocaleString()}</span>
                 <button onClick={() => handleDelete(city.id)} className="delete-button">
                   Delete
                 </button>
