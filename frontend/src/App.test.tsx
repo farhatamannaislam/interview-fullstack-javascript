@@ -5,7 +5,7 @@ import App from './App';
 beforeEach(() => {
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
-    json: async () => ({
+    json: () => ({
       results: [{ id: 1, name: 'Berlin', count: 523 }],
       page: 1,
     }),
@@ -55,7 +55,6 @@ test('shows error if fetch fails', async () => {
     expect(screen.getByText(/Failed to fetch cities/i)).toBeInTheDocument();
   });
 });
-
 
 
 

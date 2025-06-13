@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import './App.css';
 
-type City = {
+interface City {
   id: number;
   name: string;
   count: number;
   isEditing?: boolean;
   editName?: string;
   editCount?: number;
-};
+}
+
+interface CityAPIResponse {
+  results: City[];
+}
 
 function App() {
   const [search, setSearch] = useState('');
@@ -18,10 +22,10 @@ function App() {
   const [newName, setNewName] = useState('');
   const [newCount, setNewCount] = useState<number>(0);
 
-  const fetchCities = async () => {
+  const fetchCities = async (): Promise<void> => {
     if (!search.trim()) {
       setCities([]);
-      setError(null); // Clear any previous error when input is empty
+      setError(null);
       return;
     }
 
@@ -31,10 +35,10 @@ function App() {
     try {
       const res = await fetch(`http://localhost:8000/api/cities?search=${encodeURIComponent(search)}&page=1`);
       if (!res.ok) throw new Error('Network response was not ok');
-      const data = await res.json();
+      const data = (await res.json()) as CityAPIResponse;
+
       setCities(data.results);
 
-      // Handle empty result
       if (data.results.length === 0) {
         setError('No cities found. Try a different search term.');
       } else {
@@ -48,13 +52,12 @@ function App() {
     }
   };
 
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
-    fetchCities();
+    void fetchCities(); // void to explicitly mark promise as unawaited
   };
 
-  const handleAddCity = async () => {
+  const handleAddCity = async (): Promise<void> => {
     if (!newName.trim() || isNaN(Number(newCount)) || Number(newCount) <= 0) {
       setError('Please provide a valid name and count.');
       return;
@@ -78,28 +81,26 @@ function App() {
 
       setNewName('');
       setNewCount(0);
-      setError(null); // clear previous errors
-      fetchCities();
+      setError(null);
+      await fetchCities(); // ✅ properly awaited
     } catch (err) {
       console.error('Add city failed:', err);
       setError('Failed to add city. Please try again.');
     }
   };
 
-
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number): Promise<void> => {
     try {
       await fetch(`http://localhost:8000/api/cities/${id}`, {
         method: 'DELETE',
       });
-      setError(null); // clear previous error
-      fetchCities();  // refresh the list
+      setError(null);
+      await fetchCities(); // ✅ properly awaited
     } catch (err) {
       console.error('Delete failed:', err);
       setError('Failed to delete city.');
     }
   };
-
 
   return (
     <div className="container">
@@ -141,7 +142,7 @@ function App() {
             onChange={(e) => setNewCount(Number(e.target.value))}
             className="search-input"
           />
-          <button onClick={handleAddCity} className="search-button">
+          <button onClick={() => void handleAddCity()} className="search-button">
             Add City
           </button>
         </div>
@@ -157,7 +158,10 @@ function App() {
               <li key={city.id} className="city-item">
                 <span className="city-name">{city.name}</span>
                 <span className="city-count">Count: {city.count.toLocaleString()}</span>
-                <button onClick={() => handleDelete(city.id)} className="delete-button">
+                <button
+                  onClick={() => void handleDelete(city.id)}
+                  className="delete-button"
+                >
                   Delete
                 </button>
               </li>
@@ -170,3 +174,4 @@ function App() {
 }
 
 export default App;
+
